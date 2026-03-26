@@ -1,0 +1,15 @@
+fastapi
+uvicorn
+sqlalchemy
+psycopg2-binary 
+pydantic
+pydantic-settings
+python-dotenv
+passlib[bcrypt]
+PyJWT
+gspread
+google-auth
+oauth2client 
+jinja2
+starlette-csrf
+aiofiles
