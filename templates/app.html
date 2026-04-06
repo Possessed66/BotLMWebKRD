@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+    <title>Ростовский Бот</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --success: #10b981;
+            --error: #ef4444;
+            --warning: #f59e0b;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --text-muted: #64748b;
+            --border: #cbd5e1;
+            --shadow: rgba(0, 0, 0, 0.05);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .header h1 {
+            font-size: 1.5rem; font-weight: 600; color: var(--primary);
+            display: flex; align-items: center; gap: 8px;
+        }
+        .header h1::before { content: "🛒"; font-size: 1.4rem; }
+
+        .welcome { color: var(--text-muted); margin-top: 8px; text-align: center; }
+
+        .card {
+            background: var(--card-bg); border-radius: 12px; padding: 24px;
+            margin-bottom: 20px; box-shadow: 0 2px 8px var(--shadow);
+        }
+
+        h2 { font-size: 1.25rem; font-weight: 600; margin-bottom: 16px; color: var(--text); }
+        .form-group { margin-bottom: 16px; }
+        label { display: block; margin-bottom: 6px; font-weight: 500; font-size: 0.9rem; color: var(--text); }
+
+        input, select {
+            width: 100%; padding: 10px 12px; border: 1px solid var(--border);
+            border-radius: 8px; font-size: 1rem; transition: border-color 0.2s;
+        }
+        input:focus, select:focus {
+            outline: none; border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        button {
+            background: var(--primary); color: white; border: none;
+            padding: 12px 20px; border-radius: 8px; font-size: 1rem;
+            font-weight: 500; cursor: pointer; width: 100%;
+            transition: all 0.2s;
+        }
+        button:hover { background: #1d4ed8; }
+        button:disabled { background: #cbd5e1; cursor: not-allowed; }
+
+        .btn-secondary { background: #6b7280; margin-top: 12px; }
+        .btn-secondary:hover { background: #565960; }
+
+        .product-info { background: #f1f5f9; border-radius: 8px; padding: 16px; margin: 16px 0; display: none; }
+        .product-info.show { display: block; }
+        .info-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 0.95rem; border-bottom: 1px dashed #e2e8f0; }
+        .info-row:last-child { border-bottom: none; }
+        .info-label { color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
+        .info-value { font-weight: 500; color: var(--text); }
+
+        /* === СТИЛИ СТАТУСОВ И УВЕДОМЛЕНИЙ (ОБНОВЛЕНО) === */
+        
+        .status {
+            margin-top: 16px; padding: 12px 16px; border-radius: 8px;
+            font-size: 0.95rem; border-left: 5px solid transparent;
+        }
+        .status.success {
+            background: #f0fdf4; color: #166534; border-left-color: var(--success);
+            display: flex; flex-direction: column; gap: 4px;
+        }
+        .status.success strong { font-size: 1.05rem; display: block; margin-bottom: 4px; }
+        
+        /* Плашка для ID заказа */
+        .queue-id-box {
+            background: rgba(22, 101, 52, 0.1);
+            padding: 4px 10px; border-radius: 6px;
+            font-family: 'Consolas', monospace; font-size: 0.9rem;
+            display: inline-flex; align-items: center; gap: 8px; margin-top: 4px;
+        }
+        .copy-btn {
+            background: transparent !important; color: #166534; cursor: pointer;
+            padding: 0 !important; width: auto !important; font-size: 1rem;
+            opacity: 0.7; transition: opacity 0.2s;
+        }
+        .copy-btn:hover { opacity: 1; }
+
+        /* Кнопка Новый Заказ */
+        #newOrderBtn {
+            background: var(--primary);
+            box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2);
+        }
+        #newOrderBtn:hover { transform: translateY(-1px); box-shadow: 0 6px 8px rgba(37, 99, 235, 0.3); }
+
+        .hidden { display: none; }
+
+        .footer-note { font-size: 0.85rem; color: var(--text-muted); text-align: center; margin-top: 32px; padding-top: 16px; border-top: 1px solid var(--border); }
+
+        @media (max-width: 768px) {
+            .container { padding: 12px; }
+            .card { padding: 16px; }
+            .info-row { flex-direction: column; gap: 6px; padding: 8px 0; border-bottom: none; }
+            .header { flex-direction: column; gap: 12px; align-items: stretch; }
+        }
+
+        /* --- Уведомления --- */
+        .notification-item {
+            background: var(--card-bg); border-radius: 8px; padding: 16px;
+            margin-bottom: 12px; box-shadow: 0 1px 3px var(--shadow);
+            border-left: 4px solid var(--primary); transition: all 0.2s;
+        }
+        .notification-item.unread {
+            border-left-color: var(--warning);
+            background-color: #fffbeb; /* Легкий желтый */
+        }
+        /* Цвета статусов */
+        .notification-item.rejected { border-left-color: var(--error); background-color: #fff2f2; }
+        .notification-item.expo_on { border-left-color: var(--success); background-color: #f0fff4; }
+
+        .notification-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .notification-title { font-weight: 600; color: var(--text); font-size: 1rem; }
+        .notification-time { font-size: 0.8rem; color: var(--text-muted); white-space: nowrap; }
+        
+        .notification-message { font-size: 0.95rem; color: var(--text); margin-bottom: 8px; line-height: 1.5; }
+        
+        .notification-meta {
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: 0.8rem; color: var(--text-muted);
+            margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border);
+        }
+        
+        .notification-controls { margin-top: 10px; display: flex; gap: 8px; }
+        .notification-controls button { width: auto; padding: 6px 12px; font-size: 0.85rem; }
+
+        .unread-count {
+            background-color: var(--error); color: white; border-radius: 50%;
+            padding: 0 6px; font-size: 0.7rem; font-weight: bold;
+            position: absolute; top: -6px; right: -6px; min-width: 18px; text-align: center;
+            line-height: 18px; height: 18px;
+        }
+        .unread-count.hidden { display: none; }
+
+        .header-actions { display: flex; align-items: center; gap: 12px; }
+        #notifications-btn {
+            position: relative; background: transparent; border: none;
+            color: var(--text); font-size: 0.9rem; padding: 8px 12px;
+            cursor: pointer; display: flex; align-items: center; gap: 4px;
+        }
+        #notifications-btn:hover { background: rgba(0, 0, 0, 0.05); border-radius: 6px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Ростовский Бот</h1>
+            <div class="header-actions">
+                <button id="notifications-btn" onclick="switchView('notifications')" style="position: relative;">
+                    🔔 Уведомления
+                    <span id="unread-badge" class="unread-count hidden">0</span>
+                </button>
+                <a href="/logout"><button style="width:auto; padding: 8px 16px; font-size: 0.9rem;">🚪 Выйти</button></a>
+            </div>
+        </div>
+
+        <p class="welcome">Добро пожаловать, <strong>{{ user.username }}</strong> ({{ user.position }})</p>
+
+        <!-- ОСНОВНАЯ СЕКЦИЯ -->
+        <div id="mainSection">
+            <div class="card">
+                <h2>🔍 Найти товар</h2>
+                <div class="form-group">
+                    <label>📍 Номер магазина *</label>
+                    <input type="text" id="shop" placeholder="Например: 7, 14, 69, 94">
+                </div>
+                <div class="form-group">
+                    <label>🏷️ Артикул *</label>
+                    <input type="text" id="article" placeholder="Например: 83859908">
+                </div>
+                <button onclick="searchProduct()">🔎 Найти товар</button>
+                <div id="searchError" class="status error hidden"></div>
+            </div>
+
+            <!-- Карточка товара (скрыта) -->
+            <div id="productSection" class="card hidden">
+                <h2>📦 Информация о товаре</h2>
+                <div class="product-info show">
+                    <div class="info-row"><span class="info-label">🏷️ Артикул:</span><span class="info-value" id="pArticle"></span></div>
+                    <div class="info-row"><span class="info-label">📦 Название:</span><span class="info-value" id="pName"></span></div>
+                    <div class="info-row"><span class="info-label">🏢 Отдел:</span><span class="info-value" id="pDepartment"></span></div>
+                    <div class="info-row"><span class="info-label">🚚 Поставщик:</span><span class="info-value" id="pSupplier"></span></div>
+                    <div class="info-row"><span class="info-label">📅 Дата заказа:</span><span class="info-value" id="pOrderDate"></span></div>
+                    <div class="info-row"><span class="info-label">🚚➡️🏪 Дата поставки:</span><span class="info-value" id="pDeliveryDate"></span></div>
+                </div>
+
+                <form id="orderForm">
+                    <input type="hidden" id="formShop" name="shop">
+                    <input type="hidden" id="formArticle" name="article">
+                    <input type="hidden" id="formDepartment" name="department">
+                    <h2>🛒 Оформить заказ</h2>
+                    <div class="form-group">
+                        <label>🔢 Количество *</label>
+                        <input type="number" name="quantity" min="1" value="1">
+                    </div>
+                    <div class="form-group">
+                        <label>📝 Причина заказа *</label>
+                        <input type="text" name="order_reason" placeholder="Например: остаток < 3">
+                    </div>
+                    <button type="submit">✅ Подтвердить и отправить</button>
+                </form>
+                <div id="orderStatus" class="status hidden"></div>
+                <button id="newOrderBtn" class="btn-secondary hidden" onclick="resetForm()">🔄 Новый заказ</button>
+            </div>
+        </div>
+
+        <!-- СЕКЦИЯ УВЕДОМЛЕНИЙ -->
+        <div id="notificationsSection" class="card hidden">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h2 style="margin-bottom: 0;">🔔 Уведомления</h2>
+                <button onclick="switchView('main')" style="width: auto; background: #6b7280; padding: 8px 16px;">🔙 К поиску</button>
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-bottom: 16px;">
+                <button onclick="loadNotifications(false)">🔄 Обновить</button>
+                <button onclick="loadNotifications(true)" style="background: #6b7280;">📋 Непрочитанные</button>
+            </div>
+
+            <div id="notificationsContainer"><div style="text-align:center; color:var(--text-muted);">Загрузка...</div></div>
+            <button id="loadMoreNotificationsBtn" class="btn-secondary hidden" onclick="loadMoreNotifications()">Загрузить ещё</button>
+        </div>
+
+        <div class="footer-note">Заказы обрабатываются фоновым воркером.</div>
+    </div>
+
+    <script>
+    // === ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ===
+    let currentProduct = null;
+    let notificationOffset = 0;
+    const notificationLimit = 20;
+    let loadingNotifications = false;
+    let allNotificationsLoaded = false;
+    let currentFilterUnread = false;
+
+    // === СЛОВАРЬ СТАТУСОВ (Красивые заголовки) ===
+    const statusMap = {
+        'confirmed': { text: '✅ Заказ подтверждён', class: 'confirmed' },
+        'rejected': { text: '❌ Заказ отклонён', class: 'rejected' },
+        'expo_on': { text: '📍 Поставлен на экспо', class: 'expo_on' },
+        'expo_off': { text: '📍 Снят с экспо', class: 'expo_off' }
+    };
+
+    // === ФУНКЦИЯ: Переключение видов ===
+    function switchView(view) {
+        document.getElementById('mainSection').classList.add('hidden');
+        document.getElementById('notificationsSection').classList.add('hidden');
+        document.getElementById('searchError').classList.add('hidden');
+
+        if (view === 'main') {
+            document.getElementById('mainSection').classList.remove('hidden');
+        } else if (view === 'notifications') {
+            document.getElementById('notificationsSection').classList.remove('hidden');
+            // Запускаем загрузку только если контейнер пуст или в состоянии "Загрузка"
+            if (document.getElementById('notificationsContainer').innerText.includes('Загрузка') || document.getElementById('notificationsContainer').children.length === 0) {
+                loadNotifications(false);
+            }
+        }
+    }
+
+    // === ФУНКЦИЯ: Счётчик (только непрочитанные) ===
+    async function updateUnreadCount() {
+        try {
+            // Запрашиваем только количество (limit=0), сами данные нам тут не нужны
+            const response = await fetch(`/api/notifications?unread_only=true&limit=0`, { method: 'GET', credentials: 'include' });
+            if (!response.ok) return;
+            const data = await response.json();
+            const count = data.total_count || 0;
+            const badge = document.getElementById('unread-badge');
+            
+            if (count > 0) {
+                badge.textContent = count;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+        } catch (e) { console.error("Ошибка счётчика:", e); }
+    }
+
+    // === POLLING: Обновление счетчика раз в минуту ===
+    setInterval(updateUnreadCount, 60000); 
+
+    // === ФУНКЦИЯ: Загрузка уведомлений ===
+    async function loadNotifications(unreadOnly = false) {
+        if (loadingNotifications) return;
+        loadingNotifications = true;
+        currentFilterUnread = unreadOnly;
+        notificationOffset = 0;
+        allNotificationsLoaded = false;
+
+        const container = document.getElementById('notificationsContainer');
+        const loadMoreBtn = document.getElementById('loadMoreNotificationsBtn');
+        loadMoreBtn.classList.add('hidden');
+        container.innerHTML = '<div style="text-align:center; color:var(--text-muted);">Загрузка...</div>';
+
+        try {
+            const response = await fetch(`/api/notifications?limit=${notificationLimit}&offset=${notificationOffset}&unread_only=${currentFilterUnread}`, {
+                method: 'GET', credentials: 'include'
+            });
+
+            if (!response.ok) throw new Error(`Ошибка: ${response.status}`);
+            const data = await response.json();
+
+            container.innerHTML = '';
+            if (data.notifications.length === 0) {
+                container.innerHTML = '<div style="text-align:center; color:var(--text-muted); padding:20px;">Нет уведомлений</div>';
+            } else {
+                renderNotifications(data.notifications);
+                notificationOffset += data.notifications.length;
+                if (data.notifications.length < notificationLimit) allNotificationsLoaded = true;
+                if (!allNotificationsLoaded) loadMoreBtn.classList.remove('hidden');
+            }
+            updateUnreadCount();
+        } catch (e) {
+            console.error(e);
+            container.innerHTML = '<div class="error" style="text-align:center;">Ошибка загрузки</div>';
+        } finally {
+            loadingNotifications = false;
+        }
+    }
+
+    // === ФУНКЦИЯ: Рендер (Время GMT+3 + Метаданные) ===
+    function renderNotifications(notifications, append = false) {
+        const container = document.getElementById('notificationsContainer');
+        if (!append) container.innerHTML = '';
+
+        notifications.forEach(notif => {
+            const itemEl = document.createElement('div');
+            const statusInfo = statusMap[notif.action] || { text: notif.action, class: '' };
+            
+            // Класс карточки (подсветка)
+            let itemClass = `notification-item ${notif.is_read ? '' : 'unread'} ${statusInfo.class}`;
+
+            // === ИСПРАВЛЕНИЕ ВРЕМЕНИ (GMT+3) ===
+            // Бэкенд возвращает UTC. Преобразуем в Московское время.
+            const dateObj = new Date(notif.created_at);
+            const formattedDate = dateObj.toLocaleString('ru-RU', { 
+                timeZone: 'Europe/Moscow',
+                day: 'numeric', month: 'numeric', year: '2-digit',
+                hour: '2-digit', minute: '2-digit'
+            });
+
+            itemEl.className = itemClass;
+            itemEl.dataset.id = notif.id;
+
+            itemEl.innerHTML = `
+                <div class="notification-header">
+                    <div class="notification-title">${statusInfo.text}</div>
+                    <div class="notification-time">${formattedDate}</div>
+                </div>
+                <div class="notification-message">${notif.message}</div>
+                <div class="notification-meta">
+                    <span>📦 Арт: ${notif.article || 'N/A'}</span>
+                    <span>🗓 Лист: ${notif.sheet_name}, стр. ${notif.row_number}</span>
+                </div>
+                ${!notif.is_read ? `
+                <div class="notification-controls">
+                    <button onclick="markSingleNotificationAsRead(${notif.id}, this)">✅ Прочитано</button>
+                </div>
+                ` : ''}
+            `;
+            container.appendChild(itemEl);
+        });
+    }
+
+    // === ФУНКЦИЯ: Загрузить ещё ===
+    async function loadMoreNotifications() {
+        if (loadingNotifications || allNotificationsLoaded) return;
+        loadingNotifications = true;
+        const loadMoreBtn = document.getElementById('loadMoreNotificationsBtn');
+        loadMoreBtn.disabled = true;
+
+        try {
+            const response = await fetch(`/api/notifications?limit=${notificationLimit}&offset=${notificationOffset}&unread_only=${currentFilterUnread}`, {
+                method: 'GET', credentials: 'include'
+            });
+            const data = await response.json();
+            if (data.notifications.length > 0) {
+                renderNotifications(data.notifications, true);
+                notificationOffset += data.notifications.length;
+            }
+            if (data.notifications.length < notificationLimit) {
+                allNotificationsLoaded = true;
+                loadMoreBtn.classList.add('hidden');
+            }
+        } catch (e) { console.error(e); }
+        finally { loadingNotifications = false; loadMoreBtn.disabled = false; }
+    }
+
+    // === ФУНКЦИЯ: Отметить прочитанным ===
+    async function markSingleNotificationAsRead(id, button) {
+        await markNotificationsAsRead([id]);
+        const item = button.closest('.notification-item');
+        if (item) {
+            item.classList.remove('unread', 'rejected', 'expo_on'); // Убираем цветные подсветки
+            item.classList.add('confirmed'); // Делаем нейтральным
+            const controls = button.closest('.notification-controls');
+            if (controls) controls.remove(); // Удаляем кнопку
+        }
+    }
+
+    async function markNotificationsAsRead(ids) {
+        try {
+            await fetch('/api/notifications/read', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ notification_ids: ids }),
+                credentials: 'include'
+            });
+            updateUnreadCount(); // Обновляем бейдж в шапке
+        } catch (e) { console.error(e); }
+    }
+
+    // === ФУНКЦИИ ПОИСКА И ЗАКАЗА ===
+    async function searchProduct() {
+        const article = document.getElementById('article').value.trim();
+        const shop = document.getElementById('shop').value.trim();
+        const errorDiv = document.getElementById('searchError');
+        errorDiv.classList.add('hidden');
+        
+        if (!article || !shop) {
+            errorDiv.textContent = '⚠️ Заполните все поля'; 
+            errorDiv.classList.remove('hidden'); 
+            return; 
+        }
+
+        try {
+            const response = await fetch('/api/search', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({ article, shop }),
+                credentials: 'include'
+            });
+            const result = await response.json();
+            
+            if (response.ok && result.found) {
+                // ВНИМАНИЕ: Используем ключи как на бэкенде (русские)
+                document.getElementById('pArticle').textContent = result.data['Артикул'];
+                document.getElementById('pName').textContent = result.data['Название'];
+                document.getElementById('pDepartment').textContent = result.data['Отдел'];
+                document.getElementById('pSupplier').textContent = result.data['Поставщик'];
+                document.getElementById('pOrderDate').textContent = result.data['Дата заказа'];
+                document.getElementById('pDeliveryDate').textContent = result.data['Дата поставки'];
+                
+                // Hidden inputs
+                document.getElementById('formShop').value = result.data['Магазин'];
+                document.getElementById('formArticle').value = result.data['Артикул'];
+                document.getElementById('formDepartment').value = result.data['Отдел'];
+                
+                document.getElementById('productSection').classList.remove('hidden');
+                document.getElementById('productSection').scrollIntoView({ behavior: 'smooth' });
+            } else {
+                errorDiv.textContent = result.message || 'Товар не найден';
+                errorDiv.classList.remove('hidden');
+                document.getElementById('productSection').classList.add('hidden');
+            }
+        } catch (e) { 
+            errorDiv.textContent = 'Ошибка соединения'; 
+            errorDiv.classList.remove('hidden'); 
+        }
+    }
+
+    // Обработчик отправки заказа
+    document.getElementById('orderForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const statusDiv = document.getElementById('orderStatus');
+        const submitBtn = e.target.querySelector('button[type="submit"]');
+        submitBtn.disabled = true; 
+        submitBtn.textContent = '⏳ Отправка...';
+        
+        const formData = new FormData(e.target);
+        // Преобразуем FormData в обычный объект для отправки
+        const formObj = {};
+        formData.forEach((v, k) => formObj[k] = v);
+
+        try {
+            const response = await fetch('/api/order', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams(formObj), // Отправляем как form-urlencoded
+                credentials: 'include'
+            });
+            const result = await response.json();
+            
+            if (response.ok) {
+                // Красивый вывод успеха с ID
+                statusDiv.innerHTML = `
+                    <strong>✅ Заказ успешно принят!</strong>
+                    <div class="queue-id-box">
+                        ID: ${result.queue_id}
+                        <button class="copy-btn" onclick="navigator.clipboard.writeText('${result.queue_id}')" title="Скопировать ID">
+                            📋
+                        </button>
+                    </div>
+                `;
+                statusDiv.className = 'status success'; 
+                statusDiv.classList.remove('hidden');
+                
+                submitBtn.style.display = 'none';
+                document.getElementById('newOrderBtn').classList.remove('hidden');
+            } else {
+                statusDiv.textContent = `❌ Ошибка: ${result.detail || 'Неизвестная ошибка'}`;
+                statusDiv.className = 'status error'; 
+                statusDiv.classList.remove('hidden');
+            }
+        } catch (e) { 
+            statusDiv.textContent = 'Ошибка сети'; 
+            statusDiv.className = 'status error'; 
+            statusDiv.classList.remove('hidden'); 
+        }
+        finally { 
+            submitBtn.disabled = false; 
+            submitBtn.textContent = '✅ Подтвердить'; 
+        }
+    });
+
+    function resetForm() {
+        document.getElementById('productSection').classList.add('hidden');
+        document.getElementById('article').value = '';
+        document.getElementById('shop').value = '';
+        document.getElementById('orderStatus').classList.add('hidden');
+        document.getElementById('newOrderBtn').classList.add('hidden');
+        document.querySelector('#orderForm button[type="submit"]').style.display = 'block';
+        document.getElementById('orderForm').reset();
+    }
+
+    // Инициализация
+    document.getElementById('article').addEventListener('keypress', (e) => { if (e.key === 'Enter') searchProduct(); });
+    document.addEventListener('DOMContentLoaded', () => updateUnreadCount());
+
+</script>
+</body>
+</html>

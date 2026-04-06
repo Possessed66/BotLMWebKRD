@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Уведомления</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --success: #10b981;
+            --error: #ef4444;
+            --warning: #f59e0b;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --text-muted: #64748b;
+            --border: #cbd5e1;
+            --shadow: rgba(0, 0, 0, 0.05);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            padding: 0;
+            margin: 0;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        .notification-item {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: 0 1px 3px var(--shadow);
+            border-left: 4px solid var(--primary); /* Цвет можно менять по типу */
+        }
+
+        .notification-item.unread {
+            border-left-color: var(--warning);
+            background-color: #fefce8; /* Лёгкий жёлтый фон для непрочитанных */
+        }
+
+        .notification-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .notification-title {
+            font-weight: 500;
+            color: var(--text);
+        }
+
+        .notification-time {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .notification-message {
+            font-size: 0.95rem;
+            color: var(--text);
+        }
+
+        .notification-meta {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 8px;
+        }
+
+        .loading, .error {
+            text-align: center;
+            padding: 20px;
+            color: var(--text-muted);
+        }
+
+        .error {
+            color: var(--error);
+        }
+
+        button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background: #1d4ed8;
+        }
+
+        button:disabled {
+            background: #cbd5e1;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔔 Уведомления</h1>
+            <a href="/app">
+                <button style="width:auto; padding: 4px 8px; font-size: 0.8rem;">← Назад</button>
+            </a>
+        </div>
+
+        <div id="notifications-container">
+            <div class="loading">Загрузка уведомлений...</div>
+        </div>
+
+        <button id="load-more-btn" style="display:none;">Загрузить ещё</button>
+    </div>
+
+    <script>
+        let offset = 0;
+        const limit = 20;
+        let isLoading = false;
+        let allLoaded = false;
+
+        async function loadNotifications(showUnreadOnly = false) {
+            if (isLoading || allLoaded) return;
+
+            isLoading = true;
+            const loadMoreBtn = document.getElementById('load-more-btn');
+            loadMoreBtn.disabled = true;
+
+            try {
+                const response = await fetch(`/api/notifications?limit=${limit}&offset=${offset}&unread_only=${showUnreadOnly}`, {
+                    method: 'GET',
+                    credentials: 'include' // Для куки
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Ошибка: ${response.status}`);
+                }
+
+                const data = await response.json();
+                const container = document.getElementById('notifications-container');
+
+                if (offset === 0) {
+                    // Первый запрос - очищаем контейнер
+                    container.innerHTML = '';
+                }
+
+                if (data.notifications.length === 0 && offset === 0) {
+                    container.innerHTML = '<div class="error">Нет уведомлений</div>';
+                    allLoaded = true;
+                    loadMoreBtn.style.display = 'none';
+                    return;
+                }
+
+                data.notifications.forEach(notif => {
+                    const itemEl = document.createElement('div');
+                    itemEl.className = `notification-item ${notif.is_read ? '' : 'unread'}`;
+                    itemEl.dataset.id = notif.id; // Для отметки как прочитанное
+
+                    itemEl.innerHTML = `
+                        <div class="notification-header">
+                            <div class="notification-title">[${notif.action}] ${notif.sheet_name}:${notif.row_number}</div>
+                            <div class="notification-time">${new Date(notif.created_at).toLocaleString()}</div>
+                        </div>
+                        <div class="notification-message">${notif.message}</div>
+                        <div class="notification-meta">Заказ: ${notif.order_number || 'N/A'}, Артикул: ${notif.article || 'N/A'}</div>
+                    `;
+                    container.appendChild(itemEl);
+                });
+
+                offset += data.notifications.length;
+                if (data.notifications.length < limit) {
+                    allLoaded = true;
+                }
+
+                loadMoreBtn.style.display = allLoaded ? 'none' : 'block';
+
+            } catch (e) {
+                console.error("Ошибка загрузки уведомлений:", e);
+                const container = document.getElementById('notifications-container');
+                if (offset === 0) {
+                    container.innerHTML = '<div class="error">Ошибка загрузки уведомлений</div>';
+                } else {
+                    const errorEl = document.createElement('div');
+                    errorEl.className = 'error';
+                    errorEl.textContent = 'Ошибка загрузки';
+                    document.getElementById('notifications-container').appendChild(errorEl);
+                }
+            } finally {
+                isLoading = false;
+                loadMoreBtn.disabled = false;
+            }
+        }
+
+        document.getElementById('load-more-btn').addEventListener('click', () => {
+            loadNotifications();
+        });
+
+        // Загружаем при открытии страницы
+        loadNotifications();
+    </script>
+</body>
+</html>
