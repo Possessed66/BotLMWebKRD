@@ -56,7 +56,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite:///./database.db"
     EXISTING_DB_PATH: str = "./articles.db"
     # Имя Google Таблицы
-    GOOGLE_SPREADSHEET_NAME: str = "Копия Заказы МЗ 0.2"
+    GOOGLE_SPREADSHEET_NAME: str = "Заказы МЗ 0.2KRD"
     # Переменная с JSON-ключом
     GOOGLE_CREDENTIALS_JSON: str = ""
 
@@ -135,7 +135,7 @@ Base.metadata.create_all(bind=engine)
 
 # === FASTAPI ===
 app = FastAPI(
-    title="Ростовский Бот", 
+    title="Кранодарский бот", 
     version="2.0.0",
     docs_url=None, 
     redoc_url=None, 
