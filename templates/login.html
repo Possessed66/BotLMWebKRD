@@ -92,7 +92,7 @@
         <form method="post" action="/login">
             <div class="form-group">
                 <label for="username">Логин</label>
-                <input type="text" id="username" name="username" placeholder="Введите логин" required>
+                <input type="text" id="username" name="username" placeholder="Введите логин, это не Ваш LDAP" required>
             </div>
             <div class="form-group">
                 <label for="password">Пароль</label>
@@ -104,7 +104,7 @@
             <div class="error">{{ error }}</div>
         {% endif %}
         <div class="link">
-            <a href="/register">📝 Нет аккаунта? Зарегистрироваться</a>
+            <a href="/register">📝 Если Вы тут впервые то нужно Зарегистрироваться</a>
         </div>
     </div>
 </body>
