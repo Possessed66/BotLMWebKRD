@@ -279,21 +279,33 @@ def calculate_delivery_date_from_supplier_data(supplier_data: Dict[str, Any]) ->
     # Упрощённый расчет, теперь с учётом дня выхода заказа
     today = datetime.now().date()
 
+    # --- ИСПРАВЛЕНИЕ: Преобразование дня недели из формата Google Sheets (1=Пн, ..., 0=Вс) в формат .weekday() (0=Пн, ..., 6=Вс) ---
+    # Словарь для маппинга
+    GS_TO_WEEKDAY = {0: 6, 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5} # GS_DAY -> .weekday()
+
     # Извлекаем дни выхода заказа из supplier_data
-    day_of_week1 = supplier_data.get("День выхода заказа", 0) # 0 = Пн, 1 = Вт, ..., 6 = Вс
-    day_of_week2 = supplier_data.get("День выхода заказа 2", -1) # Используем -1 как признак "не задан"
-    day_of_week3 = supplier_data.get("День выхода заказа 3", -1)
+    gs_day1 = supplier_data.get("День выхода заказа", -1)
+    gs_day2 = supplier_data.get("День выхода заказа 2", -1)
+    gs_day3 = supplier_data.get("День выхода заказа 3", -1)
 
-    
-    current_weekday = today.weekday() 
+    # Преобразуем в формат .weekday() с помощью маппинга
+    wd1 = GS_TO_WEEKDAY.get(gs_day1, -1) # .get вернёт -1, если gs_day1 нет в словаре
+    wd2 = GS_TO_WEEKDAY.get(gs_day2, -1)
+    wd3 = GS_TO_WEEKDAY.get(gs_day3, -1)
+    # --- КОНЕЦ ИСПРАВЛЕНИЯ ---
 
-    possible_order_weekdays = [dw for dw in [day_of_week1, day_of_week2, day_of_week3] if dw != -1]
+    possible_order_weekdays = [wd for wd in [wd1, wd2, wd3] if wd != -1]
+
     if not possible_order_weekdays:
-        # Если дни выхода не заданы, возвращаем сегодняшнюю дату как fallback
+        # Если дни выхода не заданы или неверны, возвращаем сегодняшнюю дату как fallback
         order_date_obj = today
     else:
         # Найдём ближайший день в *этой неделе* или *следующей*, если в этой уже прошёл
+        # Дни недели: today.weekday() возвращает 0 (Пн) .. 6 (Вс)
+        current_weekday = today.weekday() # Сегодняшний день недели (0-6)
+
         order_weekday = None
+        # Сначала ищем день в этой неделе, который >= сегодняшнего
         for day in sorted(possible_order_weekdays):
             if day >= current_weekday:
                 order_weekday = day
@@ -302,7 +314,7 @@ def calculate_delivery_date_from_supplier_data(supplier_data: Dict[str, Any]) ->
         if order_weekday is None: # Все дни этой недели прошли
             # Ищем минимальный день для следующей недели
             order_weekday = min(possible_order_weekdays)
-            # Сдвигаем на следующую неделю
+            # Сдвигаем на следующую неделю (7 дней)
             days_ahead = order_weekday - current_weekday + 7
         else:
             # День в этой неделе
