@@ -276,12 +276,52 @@ def get_supplier_dates_from_existing_db(supplier_id: str, shop: str) -> Dict[str
     return {}
 
 def calculate_delivery_date_from_supplier_data(supplier_data: Dict[str, Any]) -> tuple[str, str]:
-    # Упрощённый расчет, как в старом коде
+    # Упрощённый расчет, теперь с учётом дня выхода заказа
     today = datetime.now().date()
-    order_date = today.strftime("%d.%m.%Y")
+
+    # Извлекаем дни выхода заказа из supplier_data
+    day_of_week1 = supplier_data.get("День выхода заказа", 0) # 0 = Пн, 1 = Вт, ..., 6 = Вс
+    day_of_week2 = supplier_data.get("День выхода заказа 2", -1) # Используем -1 как признак "не задан"
+    day_of_week3 = supplier_data.get("День выхода заказа 3", -1)
+
+    
+    current_weekday = today.weekday() 
+
+    possible_order_weekdays = [dw for dw in [day_of_week1, day_of_week2, day_of_week3] if dw != -1]
+    if not possible_order_weekdays:
+        # Если дни выхода не заданы, возвращаем сегодняшнюю дату как fallback
+        order_date_obj = today
+    else:
+        # Найдём ближайший день в *этой неделе* или *следующей*, если в этой уже прошёл
+        order_weekday = None
+        for day in sorted(possible_order_weekdays):
+            if day >= current_weekday:
+                order_weekday = day
+                break
+
+        if order_weekday is None: # Все дни этой недели прошли
+            # Ищем минимальный день для следующей недели
+            order_weekday = min(possible_order_weekdays)
+            # Сдвигаем на следующую неделю
+            days_ahead = order_weekday - current_weekday + 7
+        else:
+            # День в этой неделе
+            days_ahead = order_weekday - current_weekday
+
+        order_date_obj = today + timedelta(days=days_ahead)
+
+    # Извлекаем срок доставки
     delivery_days = supplier_data.get("Срок доставки в магазин", 3)
-    delivery_date = (today + timedelta(days=delivery_days)).strftime("%d.%m.%Y")
+
+    # Рассчитываем дату поставки
+    delivery_date_obj = order_date_obj + timedelta(days=delivery_days)
+
+    # Форматируем в строку DD.MM.YYYY
+    order_date_str = order_date_obj.strftime("%d.%m.%Y")
+    delivery_date_str = delivery_date_obj.strftime("%d.%m.%Y")
+
     return order_date, delivery_date
+
 
 
 # === ВОРКЕР (пока ручной запуск) ===
