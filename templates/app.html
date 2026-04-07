@@ -114,7 +114,7 @@
             background: var(--primary);
             box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2);
         }
-        #newOrderBtn:hover { transform: translateY(-1px); box-shadow: 0 6px 8px rgba(37, 99, 235, 0.3); }
+        #newOrderBtn:hover { transform: translateY(--shadow: 0 6px 8px rgba(37, 99, 235, 0.3); }
 
         .hidden { display: none; }
 
@@ -193,7 +193,7 @@
             <div class="card">
                 <h2>🔍 Найти товар</h2>
                 <div class="form-group">
-                    <label>📍 Номер магазина *</label>
+                    <label>📍азина *</label>
                     <input type="text" id="shop" placeholder="Например: 8, 92, 147, 150, 165, 255">
                 </div>
                 <div class="form-group">
@@ -256,6 +256,16 @@
     </div>
 
     <script>
+    // === ГЛОБАЛЬНАЯ ФУНКЦИЯ: Проверка 401 Unauthorized ===
+    function handleUnauthorized(response) {
+        if (response.status === 401) {
+            console.warn('Session expired or invalid. Redirecting to login...');
+            window.location.href = '/login';
+            return true; // Индикатор, что произошёл редирект
+        }
+        return false; // Не 401, продолжаем обычную обработку
+    }
+
     // === ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ===
     let currentProduct = null;
     let notificationOffset = 0;
@@ -264,7 +274,7 @@
     let allNotificationsLoaded = false;
     let currentFilterUnread = false;
 
-    // === СЛОВАРЬ СТАТУСОВ (Красивые заголовки) ===
+ 
     const statusMap = {
         'confirmed': { text: '✅ Заказ подтверждён', class: 'confirmed' },
         'rejected': { text: '❌ Заказ отклонён', class: 'rejected' },
@@ -294,7 +304,10 @@
         try {
             // Запрашиваем только количество (limit=0), сами данные нам тут не нужны
             const response = await fetch(`/api/notifications?unread_only=true&limit=0`, { method: 'GET', credentials: 'include' });
-            if (!response.ok) return;
+            // --- ПРОВЕРКА 401 ---
+            if (handleUnauthorized(response)) return;
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            // --- КОНЕЦ ПРОВЕРКИ ---
             const data = await response.json();
             const count = data.total_count || 0;
             const badge = document.getElementById('unread-badge');
@@ -305,7 +318,10 @@
             } else {
                 badge.classList.add('hidden');
             }
-        } catch (e) { console.error("Ошибка счётчика:", e); }
+        } catch (e) { 
+            console.error("Ошибка счётчика:", e); 
+            // Если ошибка, но не 401 (редирект уже произошёл), можно игнорировать или логировать
+        }
     }
 
     // === POLLING: Обновление счетчика раз в минуту ===
@@ -328,8 +344,10 @@
             const response = await fetch(`/api/notifications?limit=${notificationLimit}&offset=${notificationOffset}&unread_only=${currentFilterUnread}`, {
                 method: 'GET', credentials: 'include'
             });
-
-            if (!response.ok) throw new Error(`Ошибка: ${response.status}`);
+            // --- ПРОВЕРКА 401 ---
+            if (handleUnauthorized(response)) return;
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            // --- КОНЕЦ ПРОВЕРКИ ---
             const data = await response.json();
 
             container.innerHTML = '';
@@ -343,8 +361,14 @@
             }
             updateUnreadCount();
         } catch (e) {
-            console.error(e);
-            container.innerHTML = '<div class="error" style="text-align:center;">Ошибка загрузки</div>';
+            // Ошибка может быть network error или ошибка парсинга, если не 401
+            if (e.name !== 'TypeError' && !e.message.includes('HTTP error')) {
+                console.error("Ошибка загрузки уведомлений:", e);
+            }
+            // Если ошибка была 401, выполнение уже прервано и произошёл редирект
+            if (!e.message.includes('HTTP error')) {
+                container.innerHTML = '<div class="error" style="text-align:center;">Ошибка загрузки</div>';
+            }
         } finally {
             loadingNotifications = false;
         }
@@ -405,6 +429,10 @@
             const response = await fetch(`/api/notifications?limit=${notificationLimit}&offset=${notificationOffset}&unread_only=${currentFilterUnread}`, {
                 method: 'GET', credentials: 'include'
             });
+            // --- ПРОВЕРКА 401 ---
+            if (handleUnauthorized(response)) return;
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            // --- КОНЕЦ ПРОВЕРКИ ---
             const data = await response.json();
             if (data.notifications.length > 0) {
                 renderNotifications(data.notifications, true);
@@ -414,7 +442,10 @@
                 allNotificationsLoaded = true;
                 loadMoreBtn.classList.add('hidden');
             }
-        } catch (e) { console.error(e); }
+        } catch (e) { 
+            console.error("Ошибка загрузки ещё:", e); 
+            // Если ошибка была 401, выполнение уже прервано и произошёл редирект
+        }
         finally { loadingNotifications = false; loadMoreBtn.disabled = false; }
     }
 
@@ -432,14 +463,21 @@
 
     async function markNotificationsAsRead(ids) {
         try {
-            await fetch('/api/notifications/read', {
+            const response = await fetch('/api/notifications/read', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ notification_ids: ids }),
                 credentials: 'include'
             });
+            // --- ПРОВЕРКА 401 ---
+            if (handleUnauthorized(response)) return;
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            // --- КОНЕЦ ПРОВЕРКИ ---
             updateUnreadCount(); // Обновляем бейдж в шапке
-        } catch (e) { console.error(e); }
+        } catch (e) { 
+            console.error("Ошибка отметки как прочитано:", e); 
+            // Если ошибка была 401, выполнение уже прервано и произошёл редирект
+        }
     }
 
     // === ФУНКЦИИ ПОИСКА И ЗАКАЗА ===
@@ -462,6 +500,10 @@
                 body: new URLSearchParams({ article, shop }),
                 credentials: 'include'
             });
+            // --- ПРОВЕРКА 401 ---
+            if (handleUnauthorized(response)) return;
+            // Не проверяем !response.ok здесь, потому что 404 (товар не найден) - это тоже успешный ответ
+            // --- КОНЕЦ ПРОВЕРКИ ---
             const result = await response.json();
             
             if (response.ok && result.found) {
@@ -469,7 +511,7 @@
                 document.getElementById('pArticle').textContent = result.data['Артикул'];
                 document.getElementById('pName').textContent = result.data['Название'];
                 document.getElementById('pDepartment').textContent = result.data['Отдел'];
-                document.getElementById('pSupplier').textContent = result.data['Поставщик'];
+                document.getElementById('pSupplier').textContent = resultавщик'];
                 document.getElementById('pOrderDate').textContent = result.data['Дата заказа'];
                 document.getElementById('pDeliveryDate').textContent = result.data['Дата поставки'];
                 
@@ -488,6 +530,8 @@
         } catch (e) { 
             errorDiv.textContent = 'Ошибка соединения'; 
             errorDiv.classList.remove('hidden'); 
+            console.error("Ошибка поиска:", e);
+            // Если ошибка была 401, выполнение уже прервано и произошёл редирект
         }
     }
 
@@ -500,8 +544,7 @@
         submitBtn.textContent = '⏳ Отправка...';
         
         const formData = new FormData(e.target);
-        // Преобразуем FormData в обычный объект для отправки
-        const formObj = {};
+        // Преобразуем FormData в обычный объект для const formObj = {};
         formData.forEach((v, k) => formObj[k] = v);
 
         try {
@@ -511,6 +554,10 @@
                 body: new URLSearchParams(formObj), // Отправляем как form-urlencoded
                 credentials: 'include'
             });
+            // --- ПРОВЕРКА 401 ---
+            if (handleUnauthorized(response)) return;
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            // --- КОНЕЦ ПРОВЕРКИ ---
             const result = await response.json();
             
             if (response.ok) {
@@ -535,9 +582,14 @@
                 statusDiv.classList.remove('hidden');
             }
         } catch (e) { 
+            // Это может быть network error или ошибка парсинга, если не 401
+            if (e.name !== 'TypeError' && !e.message.includes('HTTP error')) {
+                console.error("Ошибка создания заказа:", e);
+            }
             statusDiv.textContent = 'Ошибка сети'; 
             statusDiv.className = 'status error'; 
             statusDiv.classList.remove('hidden'); 
+            // Если ошибка была 401, выполнение уже прервано и произошёл редирект
         }
         finally { 
             submitBtn.disabled = false; 
