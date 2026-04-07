@@ -276,63 +276,33 @@ def get_supplier_dates_from_existing_db(supplier_id: str, shop: str) -> Dict[str
     return {}
 
 def calculate_delivery_date_from_supplier_data(supplier_data: Dict[str, Any]) -> tuple[str, str]:
-    # Упрощённый расчет, теперь с учётом дня выхода заказа
     today = datetime.now().date()
+    current_iso = today.isoweekday()  # 1=Пн ... 7=Вс
 
-    # --- ИСПРАВЛЕНИЕ: Преобразование дня недели из формата Google Sheets (1=Пн, ..., 0=Вс) в формат .weekday() (0=Пн, ..., 6=Вс) ---
-    # Словарь для маппинга
-    GS_TO_WEEKDAY = {0: 6, 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5} # GS_DAY -> .weekday()
+    # Собираем дни выхода, оставляем только корректные ISO-значения (1..7)
+    valid_days = {
+        d for d in [
+            supplier_data.get("День выхода заказа"),
+            supplier_data.get("День выхода заказа 2"),
+            supplier_data.get("День выхода заказа 3")
+        ]
+        if d is not None and 1 <= d <= 7
+    }
 
-    # Извлекаем дни выхода заказа из supplier_data
-    gs_day1 = supplier_data.get("День выхода заказа", -1)
-    gs_day2 = supplier_data.get("День выхода заказа 2", -1)
-    gs_day3 = supplier_data.get("День выхода заказа 3", -1)
-
-    # Преобразуем в формат .weekday() с помощью маппинга
-    wd1 = GS_TO_WEEKDAY.get(gs_day1, -1) # .get вернёт -1, если gs_day1 нет в словаре
-    wd2 = GS_TO_WEEKDAY.get(gs_day2, -1)
-    wd3 = GS_TO_WEEKDAY.get(gs_day3, -1)
-    # --- КОНЕЦ ИСПРАВЛЕНИЯ ---
-
-    possible_order_weekdays = [wd for wd in [wd1, wd2, wd3] if wd != -1]
-
-    if not possible_order_weekdays:
-        # Если дни выхода не заданы или неверны, возвращаем сегодняшнюю дату как fallback
+    # Если дней выхода нет, заказываем сегодня
+    if not valid_days:
         order_date_obj = today
     else:
-        # Найдём ближайший день в *этой неделе* или *следующей*, если в этой уже прошёл
-        # Дни недели: today.weekday() возвращает 0 (Пн) .. 6 (Вс)
-        current_weekday = today.weekday() # Сегодняшний день недели (0-6)
+        # (d - current_iso) % 7 автоматически даёт смещение 0..6 дней
+        # min() выбирает ближайший допустимый день
+        days_ahead = min((d - current_iso) % 7 for d in valid_days)
+        order_date = today + timedelta(days=days_ahead)
 
-        order_weekday = None
-        # Сначала ищем день в этой неделе, который >= сегодняшнего
-        for day in sorted(possible_order_weekdays):
-            if day >= current_weekday:
-                order_weekday = day
-                break
-
-        if order_weekday is None: # Все дни этой недели прошли
-            # Ищем минимальный день для следующей недели
-            order_weekday = min(possible_order_weekdays)
-            # Сдвигаем на следующую неделю (7 дней)
-            days_ahead = order_weekday - current_weekday + 7
-        else:
-            # День в этой неделе
-            days_ahead = order_weekday - current_weekday
-
-        order_date_obj = today + timedelta(days=days_ahead)
-
-    # Извлекаем срок доставки
     delivery_days = supplier_data.get("Срок доставки в магазин", 3)
+    delivery_date = order_date + timedelta(days=delivery_days)
 
-    # Рассчитываем дату поставки
-    delivery_date_obj = order_date_obj + timedelta(days=delivery_days)
+    return order_date.strftime("%d.%m.%Y"), delivery_date.strftime("%d.%m.%Y")
 
-    # Форматируем в строку DD.MM.YYYY
-    order_date = order_date_obj.strftime("%d.%m.%Y")
-    delivery_date = delivery_date_obj.strftime("%d.%m.%Y")
-
-    return order_date, delivery_date
 
 
 
