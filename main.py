@@ -317,8 +317,8 @@ def calculate_delivery_date_from_supplier_data(supplier_data: Dict[str, Any]) ->
     delivery_date_obj = order_date_obj + timedelta(days=delivery_days)
 
     # Форматируем в строку DD.MM.YYYY
-    order_date_str = order_date_obj.strftime("%d.%m.%Y")
-    delivery_date_str = delivery_date_obj.strftime("%d.%m.%Y")
+    order_date = order_date_obj.strftime("%d.%m.%Y")
+    delivery_date = delivery_date_obj.strftime("%d.%m.%Y")
 
     return order_date, delivery_date
 
