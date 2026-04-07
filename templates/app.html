@@ -84,8 +84,7 @@
         .info-value { font-weight: 500; color: var(--text); }
 
         /* === СТИЛИ СТАТУСОВ И УВЕДОМЛЕНИЙ (ОБНОВЛЕНО) === */
-        
-        .status {
+ {
             margin-top: 16px; padding: 12px 16px; border-radius: 8px;
             font-size: 0.95rem; border-left: 5px solid transparent;
         }
@@ -274,7 +273,7 @@
     let allNotificationsLoaded = false;
     let currentFilterUnread = false;
 
- 
+    // === СЛОВАРЬ СТАТУСОВ (Красивые заголовки) ===
     const statusMap = {
         'confirmed': { text: '✅ Заказ подтверждён', class: 'confirmed' },
         'rejected': { text: '❌ Заказ отклонён', class: 'rejected' },
@@ -511,7 +510,7 @@
                 document.getElementById('pArticle').textContent = result.data['Артикул'];
                 document.getElementById('pName').textContent = result.data['Название'];
                 document.getElementById('pDepartment').textContent = result.data['Отдел'];
-                document.getElementById('pSupplier').textContent = resultавщик'];
+                document.getElementById('pSupplier').textContent = result.data['Поставщик'];
                 document.getElementById('pOrderDate').textContent = result.data['Дата заказа'];
                 document.getElementById('pDeliveryDate').textContent = result.data['Дата поставки'];
                 
@@ -544,7 +543,8 @@
         submitBtn.textContent = '⏳ Отправка...';
         
         const formData = new FormData(e.target);
-        // Преобразуем FormData в обычный объект для const formObj = {};
+        // Преобразуем FormData в обычный объект для отправки
+        const formObj = {};
         formData.forEach((v, k) => formObj[k] = v);
 
         try {
