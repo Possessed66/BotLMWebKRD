@@ -605,7 +605,10 @@
         document.getElementById('shop').value = '';
         document.getElementById('orderStatus').classList.add('hidden');
         document.getElementById('newOrderBtn').classList.add('hidden');
+        document.getElementById('orderStatus').innerHTML = '';
         document.querySelector('#orderForm button[type="submit"]').style.display = 'block';
+        submitBtn.disabled = false;
+        submitBtn.textContent = '✅ Подтвердить и отправить';
         document.getElementById('orderForm').reset();
     }
 
