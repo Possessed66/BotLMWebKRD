@@ -542,6 +542,8 @@
         submitBtn.disabled = true; 
         submitBtn.textContent = '⏳ Отправка...';
         
+        document.getElementById('formShop').value = document.getElementById('shop').value.trim();
+        
         const formData = new FormData(e.target);
         // Преобразуем FormData в обычный объект для отправки
         const formObj = {};
