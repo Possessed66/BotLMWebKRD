@@ -291,7 +291,7 @@ def calculate_delivery_date_from_supplier_data(supplier_data: Dict[str, Any]) ->
 
     # Если дней выхода нет, заказываем сегодня
     if not valid_days:
-        order_date_obj = today
+        order_date = today
     else:
         # (d - current_iso) % 7 автоматически даёт смещение 0..6 дней
         # min() выбирает ближайший допустимый день
